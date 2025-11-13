@@ -260,6 +260,8 @@ func setCreateFlags(cmd *cobra.Command) {
 	cmd.Flags().String("name", "", "Assign a name to the container")
 	// label needs to be StringArray, not StringSlice, to prevent "foo=foo1,foo2" from being split to {"foo=foo1", "foo2"}
 	cmd.Flags().StringArrayP("label", "l", nil, "Set metadata on container")
+	// snapshot-label needs to be StringArray, not StringSlice, to prevent "foo=foo1,foo2" from being split to {"foo=foo1", "foo2"}
+	cmd.Flags().StringArray("snapshot-label", nil, "Set metadata on snapshot")
 	// annotation needs to be StringArray, not StringSlice, to prevent "foo=foo1,foo2" from being split to {"foo=foo1", "foo2"}
 	cmd.Flags().StringArray("annotation", nil, "Add an annotation to the container (passed through to the OCI runtime)")
 	cmd.RegisterFlagCompletionFunc("annotation", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -376,7 +378,7 @@ func runAction(cmd *cobra.Command, args []string) error {
 		return errors.New("flags -d and -a cannot be specified together")
 	}
 
-	netFlags, err := loadNetworkFlags(cmd)
+	netFlags, err := loadNetworkFlags(cmd, createOpt.GOptions)
 	if err != nil {
 		return fmt.Errorf("failed to load networking flags: %w", err)
 	}

@@ -14,21 +14,27 @@
    limitations under the License.
 */
 
-package ipfs
+package snapshot
 
 import (
-	"time"
+	"github.com/spf13/cobra"
+
+	"github.com/containerd/nerdctl/v2/cmd/nerdctl/helpers"
 )
 
-// RegistryOptions represents options to configure the registry.
-type RegistryOptions struct {
-
-	// Times to retry query on IPFS. Zero or lower value means no retry.
-	ReadRetryNum int
-
-	// ReadTimeout is timeout duration of a read request to IPFS. Zero means no timeout.
-	ReadTimeout time.Duration
-
-	// IpfsPath is the IPFS_PATH value to be used for ipfs command.
-	IpfsPath string
+func Command() *cobra.Command {
+	cmd := &cobra.Command{
+		Annotations:   map[string]string{helpers.Category: helpers.Management},
+		Use:           "snapshot",
+		Short:         "Manage snapshots",
+		RunE:          helpers.UnknownSubcommandAction,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	cmd.AddCommand(
+		InfoCommand(),
+		ListCommand(),
+		UpdateCommand(),
+	)
+	return cmd
 }

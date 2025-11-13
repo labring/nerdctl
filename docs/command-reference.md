@@ -782,6 +782,10 @@ Flags:
 - :nerd_face: `--estargz-compression-level`: eStargz compression level (1-9) (default: 9)
 - :nerd_face: `--estargz-chunk-size`: eStargz chunk size
 - :nerd_face: `--estargz-min-chunk-size`: The minimal number of bytes of data must be written in one gzip stream
+- :nerd_face: `--zstdchunked`: Convert the committed layer to zstd:chunked for lazy pulling
+support zstdchunked convert
+- :nerd_face: `--zstdchunked-compression-level`: zstd:chunked compression level (default: 3)
+- :nerd_face: `--zstdchunked-chunk-size`: zstd:chunked chunk size
 
 ## Image management
 
@@ -975,6 +979,11 @@ Flags:
 - `--oci`                              : convert Docker media types to OCI media types
 - `--platform=<PLATFORM>`              : convert content for a specific platform
 - `--all-platforms`                    : convert content for all platforms (default: false)
+- `--soci`                             : convert content to SOCI image manifest v2
+*[**Note**: soci convert uses the default platform if nothing is specified. --platform flag can be used to specify a platform]*
+- `--soci-span-size` : Span size in bytes that soci index uses to segment layer data. Default is 4 MiB.
+- `--soci-min-layer-size`: Minimum layer size in bytes to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.
+
 
 ### :nerd_face: nerdctl image encrypt
 

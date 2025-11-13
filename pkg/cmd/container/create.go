@@ -39,6 +39,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
 
+	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/nerdctl/v2/pkg/annotations"
 	"github.com/containerd/nerdctl/v2/pkg/api/types"
 	"github.com/containerd/nerdctl/v2/pkg/clientutil"
@@ -59,6 +60,7 @@ import (
 	"github.com/containerd/nerdctl/v2/pkg/maputil"
 	"github.com/containerd/nerdctl/v2/pkg/mountutil"
 	"github.com/containerd/nerdctl/v2/pkg/namestore"
+	"github.com/containerd/nerdctl/v2/pkg/netutil/networkstore"
 	"github.com/containerd/nerdctl/v2/pkg/platformutil"
 	"github.com/containerd/nerdctl/v2/pkg/portutil"
 	"github.com/containerd/nerdctl/v2/pkg/referenceutil"
@@ -225,8 +227,13 @@ func Create(ctx context.Context, client *containerd.Client, args []string, netMa
 	} else {
 		if !options.Rootfs {
 			// UserNS not set and its a normal image
-			cOpts = append(cOpts, containerd.WithNewSnapshot(id, ensuredImage.Image))
-		}
+			var snapshotOpts []snapshots.Opt
+			if len(options.SnapshotLabels) > 0 {
+				snapshotOpts = append(snapshotOpts, snapshots.WithLabels(options.SnapshotLabels))
+			}
+			// 指定snapshotter和snapshot label
+			cOpts = append(cOpts, containerd.WithNewSnapshot(id, ensuredImage.Image, snapshotOpts...))
+			}
 	}
 
 	if options.Workdir != "" {
@@ -390,7 +397,10 @@ func Create(ctx context.Context, client *containerd.Client, args []string, netMa
 	}
 	cOpts = append(cOpts, ilOpt)
 
-	err = portutil.GeneratePortMappingsConfig(dataStore, options.GOptions.Namespace, id, netLabelOpts.PortMappings)
+	netConf := networkstore.NetworkConfig{
+		PortMappings: netLabelOpts.PortMappings,
+	}
+	err = portutil.StoreNetworkConfig(dataStore, options.GOptions.Namespace, id, netConf)
 	if err != nil {
 		return nil, generateRemoveOrphanedDirsFunc(ctx, id, dataStore, internalLabels), fmt.Errorf("Error writing to network-config.json: %v", err)
 	}

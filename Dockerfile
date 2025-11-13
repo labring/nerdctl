@@ -17,19 +17,19 @@
 
 # Basic deps
 # @BINARY: the binary checksums are verified via Dockerfile.d/SHA256SUMS.d/<COMPONENT>-<VERSION>
-ARG CONTAINERD_VERSION=v2.1.1@cb1076646aa3740577fafbf3d914198b7fe8e3f7
+ARG CONTAINERD_VERSION=v2.1.3@c787fb98911740dd3ff2d0e45ce88cdf01410486
 ARG RUNC_VERSION=v1.3.0@4ca628d1d4c974f92d24daccb901aa078aad748e
 ARG CNI_PLUGINS_VERSION=v1.7.1@BINARY
 
 # Extra deps: Build
-ARG BUILDKIT_VERSION=v0.21.1@BINARY
+ARG BUILDKIT_VERSION=v0.23.2@BINARY
 # Extra deps: Lazy-pulling
 ARG STARGZ_SNAPSHOTTER_VERSION=v0.16.3@BINARY
 # Extra deps: Encryption
 ARG IMGCRYPT_VERSION=v2.0.1@c377ec98ff79ec9205eabf555ebd2ea784738c6c
 # Extra deps: Rootless
 ARG ROOTLESSKIT_VERSION=v2.3.5@BINARY
-ARG SLIRP4NETNS_VERSION=v1.3.2@BINARY
+ARG SLIRP4NETNS_VERSION=v1.3.3@BINARY
 # Extra deps: bypass4netns
 ARG BYPASS4NETNS_VERSION=v0.4.2@aa04bd3dcc48c6dae6d7327ba219bda8fe2a4634
 # Extra deps: FUSE-OverlayFS
@@ -47,10 +47,10 @@ ARG GOMODJAIL_VERSION=v0.1.2@0a86b34442a491fa8f5e4565e9c846fce310239c
 ARG GO_VERSION=1.24
 ARG UBUNTU_VERSION=24.04
 ARG CONTAINERIZED_SYSTEMD_VERSION=v0.1.1
-ARG GOTESTSUM_VERSION=0d9599e513d70e5792bb9334869f82f6e8b53d4d
-ARG NYDUS_VERSION=v2.3.1
-ARG SOCI_SNAPSHOTTER_VERSION=0.9.0
-ARG KUBO_VERSION=v0.34.1
+ARG GOTESTSUM_VERSION=v1.12.3
+ARG NYDUS_VERSION=v2.3.2
+ARG SOCI_SNAPSHOTTER_VERSION=0.11.1
+ARG KUBO_VERSION=v0.35.0
 
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.6.1@sha256:923441d7c25f1e2eb5789f82d987693c47b8ed987c4ab3b075d6ed2b5d6779a3 AS xx
 
@@ -329,7 +329,10 @@ COPY --from=ghcr.io/sigstore/cosign/cosign:v2.2.3@sha256:8fc9cad121611e8479f65f7
 ARG SOCI_SNAPSHOTTER_VERSION
 RUN fname="soci-snapshotter-${SOCI_SNAPSHOTTER_VERSION}-${TARGETOS:-linux}-${TARGETARCH:-amd64}.tar.gz" && \
   curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_SNAPSHOTTER_VERSION}/${fname}" && \
-  tar -C /usr/local/bin -xvf "${fname}" soci soci-snapshotter-grpc
+  tar -C /usr/local/bin -xvf "${fname}" soci soci-snapshotter-grpc && \
+  mkdir -p /etc/soci-snapshotter-grpc && \
+  touch /etc/soci-snapshotter-grpc/config.toml && \
+  echo "\n[pull_modes]\n  [pull_modes.soci_v1]\n    enable = true" >> /etc/soci-snapshotter-grpc/config.toml
 # enable offline ipfs for integration test
 COPY --from=build-kubo /out/${TARGETARCH:-amd64}/* /usr/local/bin/
 COPY ./Dockerfile.d/test-integration-etc_containerd-stargz-grpc_config.toml /etc/containerd-stargz-grpc/config.toml

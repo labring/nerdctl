@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go"
@@ -39,12 +40,12 @@ import (
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/cio"
-	"github.com/containerd/containerd/v2/pkg/rootfs"
 	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/containerd/stargz-snapshotter/estargz"
 	estargzconvert "github.com/containerd/stargz-snapshotter/nativeconverter/estargz"
+	zstdchunkedconvert "github.com/containerd/stargz-snapshotter/nativeconverter/zstdchunked"
 
 	"github.com/containerd/nerdctl/v2/pkg/api/types"
 	"github.com/containerd/nerdctl/v2/pkg/clientutil"
@@ -67,6 +68,8 @@ type Opts struct {
 	Compression types.CompressionType
 	Format      types.ImageFormat
 	types.EstargzOptions
+	types.ZstdChunkedOptions
+	types.DevboxOptions
 }
 
 var (
@@ -181,6 +184,9 @@ func Commit(ctx context.Context, client *containerd.Client, container containerd
 	// Sync filesystem to make sure that all the data writes in container could be persisted to disk.
 	Sync()
 
+	if opts.ZstdChunked {
+		opts.Compression = types.Zstd
+	}
 	diffLayerDesc, diffID, err := createDiff(ctx, id, sn, client.ContentStore(), differ, opts.Compression, opts)
 	if err != nil {
 		return emptyDigest, fmt.Errorf("failed to export layer: %w", err)
@@ -192,7 +198,7 @@ func Commit(ctx context.Context, client *containerd.Client, container containerd
 	}
 
 	rootfsID := identity.ChainID(imageConfig.RootFS.DiffIDs).String()
-	if err := applyDiffLayer(ctx, rootfsID, baseImgConfig, sn, differ, diffLayerDesc); err != nil {
+	if err := applyDiffLayer(ctx, rootfsID, baseImgConfig, sn, differ, diffLayerDesc, opts.DevboxOptions.RemoveBaseImageTopLayer); err != nil {
 		return emptyDigest, fmt.Errorf("failed to apply diff: %w", err)
 	}
 
@@ -267,6 +273,11 @@ func generateCommitImageConfig(ctx context.Context, container containerd.Contain
 		log.G(ctx).Warnf("assuming os=%q", os)
 	}
 	log.G(ctx).Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
+	// remove last diiffID
+	if opts.DevboxOptions.RemoveBaseImageTopLayer && len(baseConfig.RootFS.DiffIDs) > 1 {
+		baseConfig.RootFS.DiffIDs = baseConfig.RootFS.DiffIDs[:len(baseConfig.RootFS.DiffIDs)-1]
+		baseConfig.History = baseConfig.History[:len(baseConfig.History)-1]
+	}
 	return ocispec.Image{
 		Platform: ocispec.Platform{
 			Architecture: arch,
@@ -322,6 +333,10 @@ func writeContentsForImage(ctx context.Context, snName string, baseImg container
 	baseMfst, _, err := imgutil.ReadManifest(ctx, baseImg)
 	if err != nil {
 		return ocispec.Descriptor{}, emptyDigest, err
+	}
+	// remove last layer
+	if opts.DevboxOptions.RemoveBaseImageTopLayer && len(baseMfst.Layers) > 1 {
+		baseMfst.Layers = baseMfst.Layers[:len(baseMfst.Layers)-1]
 	}
 	layers := append(baseMfst.Layers, diffLayerDesc)
 
@@ -414,7 +429,7 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 		}
 	}
 
-	newDesc, err := rootfs.CreateDiff(ctx, name, sn, comparer, diffOpts...)
+	newDesc, err := CreateDiff(ctx, name, sn, comparer, opts.DevboxOptions.RemoveBaseImageTopLayer, diffOpts...)
 	if err != nil {
 		return ocispec.Descriptor{}, digest.Digest(""), err
 	}
@@ -478,6 +493,44 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 		}
 	}
 
+	// Convert to zstd:chunked if requested
+	if opts.ZstdChunked {
+		log.G(ctx).Infof("Converting diff layer to zstd:chunked format")
+
+		esgzOpts := []estargz.Option{
+			estargz.WithChunkSize(opts.ZstdChunkedChunkSize),
+		}
+
+		convertFunc := zstdchunkedconvert.LayerConvertFuncWithCompressionLevel(zstd.EncoderLevelFromZstd(opts.ZstdChunkedCompressionLevel), esgzOpts...)
+
+		zstdchunkedDesc, err := convertFunc(ctx, cs, newDesc)
+		if err != nil {
+			return ocispec.Descriptor{}, digest.Digest(""), fmt.Errorf("failed to convert diff layer to zstd:chunked: %w", err)
+		} else if zstdchunkedDesc != nil {
+			zstdchunkedDesc.MediaType = mediaType
+			zstdchunkedInfo, err := cs.Info(ctx, zstdchunkedDesc.Digest)
+			if err != nil {
+				return ocispec.Descriptor{}, digest.Digest(""), err
+			}
+
+			zstdchunkedDiffIDStr, ok := zstdchunkedInfo.Labels["containerd.io/uncompressed"]
+			if !ok {
+				return ocispec.Descriptor{}, digest.Digest(""), fmt.Errorf("invalid differ response with no diffID")
+			}
+
+			zstdchunkedDiffID, err := digest.Parse(zstdchunkedDiffIDStr)
+			if err != nil {
+				return ocispec.Descriptor{}, digest.Digest(""), err
+			}
+			return ocispec.Descriptor{
+				MediaType:   zstdchunkedDesc.MediaType,
+				Digest:      zstdchunkedDesc.Digest,
+				Size:        zstdchunkedDesc.Size,
+				Annotations: zstdchunkedDesc.Annotations,
+			}, zstdchunkedDiffID, nil
+		}
+	}
+
 	return ocispec.Descriptor{
 		MediaType: mediaType,
 		Digest:    newDesc.Digest,
@@ -486,11 +539,19 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 }
 
 // applyDiffLayer will apply diff layer content created by createDiff into the snapshotter.
-func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
+func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor, removeTopLayer bool) (retErr error) {
 	var (
 		key    = uniquePart() + "-" + name
 		parent = identity.ChainID(baseImg.RootFS.DiffIDs).String()
 	)
+
+	if removeTopLayer {
+		info, err := sn.Stat(ctx, parent)
+		if err != nil {
+			return err
+		}
+		parent = info.Parent
+	}
 
 	mount, err := sn.Prepare(ctx, key, parent)
 	if err != nil {

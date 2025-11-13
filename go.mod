@@ -4,15 +4,15 @@ module github.com/containerd/nerdctl/v2
 go 1.23.5
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Microsoft/go-winio v0.6.2
 	github.com/Microsoft/hcsshim v0.13.0
-	github.com/compose-spec/compose-go/v2 v2.6.5 //gomodjail:unconfined
+	github.com/compose-spec/compose-go/v2 v2.7.1 //gomodjail:unconfined
 	github.com/containerd/accelerated-container-image v1.3.0
 	github.com/containerd/cgroups/v3 v3.0.5 //gomodjail:unconfined
 	github.com/containerd/console v1.0.5 //gomodjail:unconfined
 	github.com/containerd/containerd/api v1.9.0
-	github.com/containerd/containerd/v2 v2.1.3 //gomodjail:unconfined
+	github.com/containerd/containerd/v2 v2.1.4 //gomodjail:unconfined
 	github.com/containerd/continuity v0.4.5 //gomodjail:unconfined
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/fifo v1.1.0 //gomodjail:unconfined
@@ -32,15 +32,15 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0
 	github.com/cyphar/filepath-securejoin v0.4.1 //gomodjail:unconfined
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v28.3.0+incompatible //gomodjail:unconfined
-	github.com/docker/docker v28.3.0+incompatible //gomodjail:unconfined
+	github.com/docker/cli v28.3.2+incompatible //gomodjail:unconfined
+	github.com/docker/docker v28.3.2+incompatible //gomodjail:unconfined
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
 	github.com/fahedouch/go-logrotate v0.3.0 //gomodjail:unconfined
 	github.com/fatih/color v1.18.0 //gomodjail:unconfined
 	github.com/fluent/fluent-logger-golang v1.10.0
 	github.com/fsnotify/fsnotify v1.9.0 //gomodjail:unconfined
-	github.com/go-viper/mapstructure/v2 v2.3.0
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/ipfs/go-cid v0.5.0
 	github.com/klauspost/compress v1.18.0
 	github.com/mattn/go-isatty v0.0.20 //gomodjail:unconfined
@@ -62,13 +62,13 @@ require (
 	github.com/vishvananda/netns v0.0.5 //gomodjail:unconfined
 	github.com/yuchanns/srslog v1.1.0
 	go.uber.org/mock v0.5.2
-	go.yaml.in/yaml/v3 v3.0.3
-	golang.org/x/crypto v0.39.0
-	golang.org/x/net v0.41.0
-	golang.org/x/sync v0.15.0 //gomodjail:unconfined
-	golang.org/x/sys v0.33.0 //gomodjail:unconfined
-	golang.org/x/term v0.32.0 //gomodjail:unconfined
-	golang.org/x/text v0.26.0
+	go.yaml.in/yaml/v3 v3.0.4
+	golang.org/x/crypto v0.40.0
+	golang.org/x/net v0.42.0
+	golang.org/x/sync v0.16.0 //gomodjail:unconfined
+	golang.org/x/sys v0.34.0 //gomodjail:unconfined
+	golang.org/x/term v0.33.0 //gomodjail:unconfined
+	golang.org/x/text v0.27.0
 	gotest.tools/v3 v3.5.2
 	tags.cncf.io/container-device-interface v1.0.1 //gomodjail:unconfined
 )

@@ -14,21 +14,27 @@
    limitations under the License.
 */
 
-package ipfs
+package types
 
-import (
-	"time"
-)
+import "io"
 
-// RegistryOptions represents options to configure the registry.
-type RegistryOptions struct {
+// SnapshotInfoOptions specifies options for getting snapshot information.
+type SnapshotInfoOptions struct {
+	Stdout      io.Writer
+	GOptions    GlobalCommandOptions
+	Snapshotter string
+}
 
-	// Times to retry query on IPFS. Zero or lower value means no retry.
-	ReadRetryNum int
+// SnapshotListOptions specifies options for listing snapshots.
+type SnapshotListOptions struct {
+	Stdout      io.Writer
+	GOptions    GlobalCommandOptions
+	Snapshotter string
+}
 
-	// ReadTimeout is timeout duration of a read request to IPFS. Zero means no timeout.
-	ReadTimeout time.Duration
-
-	// IpfsPath is the IPFS_PATH value to be used for ipfs command.
-	IpfsPath string
+// SnapshotUpdateOptions specifies options for updating snapshot metadata.
+type SnapshotUpdateOptions struct {
+	Stdout      io.Writer
+	GOptions    GlobalCommandOptions
+	Snapshotter string
 }
