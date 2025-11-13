@@ -1,3 +1,5 @@
+//go:build !no_ipfs
+
 /*
    Copyright The containerd Authors.
 
@@ -14,14 +16,14 @@
    limitations under the License.
 */
 
-package pkg
+package referenceutil
 
-import "github.com/containerd/nerdctl/v2/pkg/internal/filesystem"
+import "github.com/ipfs/go-cid"
 
-// InitFS will set the root location to store `internal/filesystem` ops files.
-// These files are used to allow `WriteFile` to backup and rollback content.
-// While they are transient in nature, they should still persist OS crashes / reboots, so, preferably under something
-// like XDGData, rather than tmp.
-func InitFS(path string) error {
-	return filesystem.SetFilesystemOpsDirectory(path)
+func decodeCid(v string) (string, error) {
+	c, err := cid.Decode(v)
+	if err != nil {
+		return "", err
+	}
+	return c.String(), nil
 }

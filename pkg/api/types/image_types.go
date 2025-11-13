@@ -19,7 +19,7 @@ package types
 import (
 	"io"
 
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageListOptions specifies options for `nerdctl image list`.
@@ -73,6 +73,7 @@ type ImageConvertOptions struct {
 	ZstdChunkedOptions
 	NydusOptions
 	OverlaybdOptions
+	SociConvertOptions
 }
 
 // EstargzOptions contains eStargz conversion options
@@ -91,6 +92,8 @@ type EstargzOptions struct {
 	EstargzExternalToc bool
 	// EstargzKeepDiffID convert to esgz without changing diffID (cannot be used in conjunction with '--estargz-record-in'. must be specified with '--estargz-external-toc')
 	EstargzKeepDiffID bool
+	// EstargzGzipHelper helper command for decompressing layers compressed with gzip. Options: pigz, igzip, or gzip
+	EstargzGzipHelper string
 }
 
 // ZstdOptions contains zstd conversion options
@@ -135,6 +138,15 @@ type OverlaybdOptions struct {
 	OverlayFsType string
 	// OverlaydbDBStr database config string for overlaybd
 	OverlaydbDBStr string
+	// #endregion
+}
+
+type SociConvertOptions struct {
+	// Soci convert image to SOCI format.
+	Soci bool
+	// SociOptions contains SOCI-specific options
+	SociOptions SociOptions
+	// #endregion
 }
 
 // ImageCryptOptions specifies options for `nerdctl image encrypt` and `nerdctl image decrypt`.
@@ -211,7 +223,7 @@ type ImagePullOptions struct {
 	// If nil, it will unpack automatically if only 1 platform is specified.
 	Unpack *bool
 	// Content for specific platforms. Empty if `--all-platforms` is true
-	OCISpecPlatform []v1.Platform
+	OCISpecPlatform []ocispec.Platform
 	// Pull mode
 	Mode string
 	// Suppress verbose output
@@ -300,4 +312,8 @@ type SociOptions struct {
 	SpanSize int64
 	// Minimum layer size to build zTOC for. Smaller layers won't have zTOC and not lazy pulled. Default is 10 MiB.
 	MinLayerSize int64
+	// Platforms convert content for a specific platform
+	Platforms []string
+	// AllPlatforms convert content for all platforms
+	AllPlatforms bool
 }

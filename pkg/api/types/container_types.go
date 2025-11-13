@@ -32,6 +32,10 @@ type ContainerStartOptions struct {
 	DetachKeys string
 	// Attach stdin
 	Interactive bool
+	// Checkpoint is the name of the checkpoint to restore
+	Checkpoint string
+	// CheckpointDir is the directory to store checkpoints
+	CheckpointDir string
 }
 
 // ContainerKillOptions specifies options for `nerdctl (container) kill`.
@@ -42,6 +46,13 @@ type ContainerKillOptions struct {
 	GOptions GlobalCommandOptions
 	// KillSignal is the signal to send to the container
 	KillSignal string
+}
+
+// ContainerExportOptions specifies options for `nerdctl (container) export`.
+type ContainerExportOptions struct {
+	Stdout io.Writer
+	// GOptions is the global options
+	GOptions GlobalCommandOptions
 }
 
 // ContainerCreateOptions specifies options for `nerdctl (container) create` and `nerdctl (container) run`.
@@ -285,13 +296,12 @@ type ContainerCreateOptions struct {
 	ImagePullOpt ImagePullOptions
 
 	// Healthcheck related fields
-	HealthCmd           string
-	HealthInterval      time.Duration
-	HealthTimeout       time.Duration
-	HealthRetries       int
-	HealthStartPeriod   time.Duration
-	HealthStartInterval time.Duration
-	NoHealthcheck       bool
+	HealthCmd         string
+	HealthInterval    time.Duration
+	HealthTimeout     time.Duration
+	HealthRetries     int
+	HealthStartPeriod time.Duration
+	NoHealthcheck     bool
 
 	// UserNS name for user namespace mapping of container
 	UserNS string
@@ -398,6 +408,8 @@ type ContainerCommitOptions struct {
 	Format ImageFormat
 	// Embed EstargzOptions for eStargz conversion options
 	EstargzOptions
+	// Embed ZstdChunkedOptions for zstd:chunked conversion options
+	ZstdChunkedOptions
 }
 
 type CompressionType string

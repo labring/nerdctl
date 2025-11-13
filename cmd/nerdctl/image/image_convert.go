@@ -61,6 +61,7 @@ func convertCommand() *cobra.Command {
 	cmd.Flags().Int("estargz-min-chunk-size", 0, "The minimal number of bytes of data must be written in one gzip stream. (requires stargz-snapshotter >= v0.13.0)")
 	cmd.Flags().Bool("estargz-external-toc", false, "Separate TOC JSON into another image (called \"TOC image\"). The name of TOC image is the original + \"-esgztoc\" suffix. Both eStargz and the TOC image should be pushed to the same registry. (requires stargz-snapshotter >= v0.13.0) (EXPERIMENTAL)")
 	cmd.Flags().Bool("estargz-keep-diff-id", false, "Convert to esgz without changing diffID (cannot be used in conjunction with '--estargz-record-in'. must be specified with '--estargz-external-toc')")
+	cmd.Flags().String("estargz-gzip-helper", "", "Helper command for decompressing layers compressed with gzip. Options: pigz, igzip, or gzip.")
 	// #endregion
 
 	// #region zstd flags
@@ -87,6 +88,12 @@ func convertCommand() *cobra.Command {
 	cmd.Flags().Bool("overlaybd", false, "Convert tar.gz layers to overlaybd layers")
 	cmd.Flags().String("overlaybd-fs-type", "ext4", "Filesystem type for overlaybd")
 	cmd.Flags().String("overlaybd-dbstr", "", "Database config string for overlaybd")
+	// #endregion
+
+	// #region soci flags
+	cmd.Flags().Bool("soci", false, "Convert image to SOCI Index V2 format.")
+	cmd.Flags().Int64("soci-min-layer-size", -1, "The minimum size of layers that will be converted to SOCI Index V2 format")
+	cmd.Flags().Int64("soci-span-size", -1, "The size of SOCI spans")
 	// #endregion
 
 	// #region generic flags
@@ -140,6 +147,10 @@ func convertOptions(cmd *cobra.Command) (types.ImageConvertOptions, error) {
 		return types.ImageConvertOptions{}, err
 	}
 	estargzKeepDiffID, err := cmd.Flags().GetBool("estargz-keep-diff-id")
+	if err != nil {
+		return types.ImageConvertOptions{}, err
+	}
+	estargzGzipHelper, err := cmd.Flags().GetString("estargz-gzip-helper")
 	if err != nil {
 		return types.ImageConvertOptions{}, err
 	}
@@ -213,6 +224,21 @@ func convertOptions(cmd *cobra.Command) (types.ImageConvertOptions, error) {
 	}
 	// #endregion
 
+	// #region soci flags
+	soci, err := cmd.Flags().GetBool("soci")
+	if err != nil {
+		return types.ImageConvertOptions{}, err
+	}
+	sociMinLayerSize, err := cmd.Flags().GetInt64("soci-min-layer-size")
+	if err != nil {
+		return types.ImageConvertOptions{}, err
+	}
+	sociSpanSize, err := cmd.Flags().GetInt64("soci-span-size")
+	if err != nil {
+		return types.ImageConvertOptions{}, err
+	}
+	// #endregion
+
 	// #region generic flags
 	uncompress, err := cmd.Flags().GetBool("uncompress")
 	if err != nil {
@@ -254,6 +280,7 @@ func convertOptions(cmd *cobra.Command) (types.ImageConvertOptions, error) {
 			EstargzMinChunkSize:     estargzMinChunkSize,
 			EstargzExternalToc:      estargzExternalTOC,
 			EstargzKeepDiffID:       estargzKeepDiffID,
+			EstargzGzipHelper:       estargzGzipHelper,
 		},
 		ZstdOptions: types.ZstdOptions{
 			Zstd:                 zstd,
@@ -276,6 +303,15 @@ func convertOptions(cmd *cobra.Command) (types.ImageConvertOptions, error) {
 			Overlaybd:      overlaybd,
 			OverlayFsType:  overlaybdFsType,
 			OverlaydbDBStr: overlaybdDbstr,
+		},
+		SociConvertOptions: types.SociConvertOptions{
+			Soci: soci,
+			SociOptions: types.SociOptions{
+				SpanSize:     sociSpanSize,
+				MinLayerSize: sociMinLayerSize,
+				Platforms:    platforms,
+				AllPlatforms: allPlatforms,
+			},
 		},
 		Stdout: cmd.OutOrStdout(),
 	}, nil

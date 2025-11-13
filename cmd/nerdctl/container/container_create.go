@@ -279,10 +279,6 @@ func createOptions(cmd *cobra.Command) (types.ContainerCreateOptions, error) {
 	if err != nil {
 		return opt, err
 	}
-	opt.HealthStartInterval, err = cmd.Flags().GetDuration("health-start-interval")
-	if err != nil {
-		return opt, err
-	}
 	opt.NoHealthcheck, err = cmd.Flags().GetBool("no-healthcheck")
 	if err != nil {
 		return opt, err
@@ -539,7 +535,7 @@ func createAction(cmd *cobra.Command, args []string) error {
 	}
 	defer cancel()
 
-	netFlags, err := loadNetworkFlags(cmd)
+	netFlags, err := loadNetworkFlags(cmd, createOpt.GOptions)
 	if err != nil {
 		return fmt.Errorf("failed to load networking flags: %w", err)
 	}
