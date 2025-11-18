@@ -301,6 +301,9 @@ type ContainerCreateOptions struct {
 
 	// UserNS name for user namespace mapping of container
 	UserNS string
+
+	// SnapshotLabels set snapshot's labels
+	SnapshotLabels map[string]string
 }
 
 // ContainerStopOptions specifies options for `nerdctl (container) stop`.
@@ -406,6 +409,8 @@ type ContainerCommitOptions struct {
 	EstargzOptions
 	// Embed ZstdChunkedOptions for zstd:chunked conversion options
 	ZstdChunkedOptions
+	// DevboxOptions for devbox specific options
+	DevboxOptions
 }
 
 type CompressionType string

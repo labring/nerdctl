@@ -40,7 +40,6 @@ import (
 	"github.com/containerd/containerd/v2/core/leases"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/pkg/cio"
-	"github.com/containerd/containerd/v2/pkg/rootfs"
 	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
@@ -70,6 +69,7 @@ type Opts struct {
 	Format      types.ImageFormat
 	types.EstargzOptions
 	types.ZstdChunkedOptions
+	types.DevboxOptions
 }
 
 var (
@@ -198,7 +198,7 @@ func Commit(ctx context.Context, client *containerd.Client, container containerd
 	}
 
 	rootfsID := identity.ChainID(imageConfig.RootFS.DiffIDs).String()
-	if err := applyDiffLayer(ctx, rootfsID, baseImgConfig, sn, differ, diffLayerDesc); err != nil {
+	if err := applyDiffLayer(ctx, rootfsID, baseImgConfig, sn, differ, diffLayerDesc, opts.DevboxOptions.RemoveBaseImageTopLayer); err != nil {
 		return emptyDigest, fmt.Errorf("failed to apply diff: %w", err)
 	}
 
@@ -273,6 +273,11 @@ func generateCommitImageConfig(ctx context.Context, container containerd.Contain
 		log.G(ctx).Warnf("assuming os=%q", os)
 	}
 	log.G(ctx).Debugf("generateCommitImageConfig(): arch=%q, os=%q", arch, os)
+	// remove last diiffID
+	if opts.DevboxOptions.RemoveBaseImageTopLayer && len(baseConfig.RootFS.DiffIDs) > 1 {
+		baseConfig.RootFS.DiffIDs = baseConfig.RootFS.DiffIDs[:len(baseConfig.RootFS.DiffIDs)-1]
+		baseConfig.History = baseConfig.History[:len(baseConfig.History)-1]
+	}
 	return ocispec.Image{
 		Platform: ocispec.Platform{
 			Architecture: arch,
@@ -328,6 +333,10 @@ func writeContentsForImage(ctx context.Context, snName string, baseImg container
 	baseMfst, _, err := imgutil.ReadManifest(ctx, baseImg)
 	if err != nil {
 		return ocispec.Descriptor{}, emptyDigest, err
+	}
+	// remove last layer
+	if opts.DevboxOptions.RemoveBaseImageTopLayer && len(baseMfst.Layers) > 1 {
+		baseMfst.Layers = baseMfst.Layers[:len(baseMfst.Layers)-1]
 	}
 	layers := append(baseMfst.Layers, diffLayerDesc)
 
@@ -420,7 +429,7 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 		}
 	}
 
-	newDesc, err := rootfs.CreateDiff(ctx, name, sn, comparer, diffOpts...)
+	newDesc, err := CreateDiff(ctx, name, sn, comparer, opts.DevboxOptions.RemoveBaseImageTopLayer, diffOpts...)
 	if err != nil {
 		return ocispec.Descriptor{}, digest.Digest(""), err
 	}
@@ -530,11 +539,19 @@ func createDiff(ctx context.Context, name string, sn snapshots.Snapshotter, cs c
 }
 
 // applyDiffLayer will apply diff layer content created by createDiff into the snapshotter.
-func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor) (retErr error) {
+func applyDiffLayer(ctx context.Context, name string, baseImg ocispec.Image, sn snapshots.Snapshotter, differ diff.Applier, diffDesc ocispec.Descriptor, removeTopLayer bool) (retErr error) {
 	var (
 		key    = uniquePart() + "-" + name
 		parent = identity.ChainID(baseImg.RootFS.DiffIDs).String()
 	)
+
+	if removeTopLayer {
+		info, err := sn.Stat(ctx, parent)
+		if err != nil {
+			return err
+		}
+		parent = info.Parent
+	}
 
 	mount, err := sn.Prepare(ctx, key, parent)
 	if err != nil {
