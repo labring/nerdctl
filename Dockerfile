@@ -17,14 +17,14 @@
 
 # Basic deps
 # @BINARY: the binary checksums are verified via Dockerfile.d/SHA256SUMS.d/<COMPONENT>-<VERSION>
-ARG CONTAINERD_VERSION=v2.1.3@c787fb98911740dd3ff2d0e45ce88cdf01410486
-ARG RUNC_VERSION=v1.3.0@4ca628d1d4c974f92d24daccb901aa078aad748e
-ARG CNI_PLUGINS_VERSION=v1.7.1@BINARY
+ARG CONTAINERD_VERSION=v2.1.4@75cb2b7193e4e490e9fbdc236c0e811ccaba3376
+ARG RUNC_VERSION=v1.3.1@e6457afc48eff1ce22dece664932395026a7105e
+ARG CNI_PLUGINS_VERSION=v1.8.0@BINARY
 
 # Extra deps: Build
-ARG BUILDKIT_VERSION=v0.23.2@BINARY
+ARG BUILDKIT_VERSION=v0.24.0@BINARY
 # Extra deps: Lazy-pulling
-ARG STARGZ_SNAPSHOTTER_VERSION=v0.16.3@BINARY
+ARG STARGZ_SNAPSHOTTER_VERSION=v0.17.0@BINARY
 # Extra deps: Encryption
 ARG IMGCRYPT_VERSION=v2.0.1@c377ec98ff79ec9205eabf555ebd2ea784738c6c
 # Extra deps: Rootless
@@ -40,22 +40,22 @@ ARG TINI_VERSION=v0.19.0@BINARY
 # Extra deps: Debug
 ARG BUILDG_VERSION=v0.5.3@BINARY
 # Extra deps: gomodjail
-ARG GOMODJAIL_VERSION=v0.1.2@0a86b34442a491fa8f5e4565e9c846fce310239c
+ARG GOMODJAIL_VERSION=v0.1.3@cea529ddd971b677c67d8af7e936fbc62b35b98c
 
 # Test deps
 # Currently, the Docker Official Images and the test deps are not pinned by the hash
-ARG GO_VERSION=1.24
+ARG GO_VERSION=1.25
 ARG UBUNTU_VERSION=24.04
 ARG CONTAINERIZED_SYSTEMD_VERSION=v0.1.1
 ARG GOTESTSUM_VERSION=v1.12.3
-ARG NYDUS_VERSION=v2.3.2
+ARG NYDUS_VERSION=v2.3.5
 ARG SOCI_SNAPSHOTTER_VERSION=0.11.1
-ARG KUBO_VERSION=v0.35.0
+ARG KUBO_VERSION=v0.37.0
 
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.6.1@sha256:923441d7c25f1e2eb5789f82d987693c47b8ed987c4ab3b075d6ed2b5d6779a3 AS xx
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.7.0@sha256:010d4b66aed389848b0694f91c7aaee9df59a6f20be7f5d12e53663a37bd14e2 AS xx
 
 
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-bookworm AS build-base
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-trixie AS build-base
 COPY --from=xx / /
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -154,7 +154,7 @@ RUN echo "- runc: ${RUNC_VERSION%%@*}" >> /out/share/doc/nerdctl-full/README.md
 ARG CNI_PLUGINS_VERSION
 RUN CNI_PLUGINS_VERSION=${CNI_PLUGINS_VERSION%%@*}; \
   fname="cni-plugins-${TARGETOS:-linux}-${TARGETARCH:-amd64}-${CNI_PLUGINS_VERSION}.tgz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGINS_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/cni-plugins-${CNI_PLUGINS_VERSION}" | sha256sum -c && \
   mkdir -p /out/libexec/cni && \
   tar xzf "${fname}" -C /out/libexec/cni && \
@@ -163,7 +163,7 @@ RUN CNI_PLUGINS_VERSION=${CNI_PLUGINS_VERSION%%@*}; \
 ARG BUILDKIT_VERSION
 RUN BUILDKIT_VERSION=${BUILDKIT_VERSION%%@*}; \
   fname="buildkit-${BUILDKIT_VERSION}.${TARGETOS:-linux}-${TARGETARCH:-amd64}.tar.gz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/buildkit-${BUILDKIT_VERSION}" | sha256sum -c && \
   tar xzf "${fname}" -C /out && \
   rm -f "${fname}" /out/bin/buildkit-qemu-* /out/bin/buildkit-cni-* /out/bin/buildkit-runc && \
@@ -179,7 +179,7 @@ ARG STARGZ_SNAPSHOTTER_VERSION
 RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN \
   STARGZ_SNAPSHOTTER_VERSION=${STARGZ_SNAPSHOTTER_VERSION%%@*}; \
   fname="stargz-snapshotter-${STARGZ_SNAPSHOTTER_VERSION}-${TARGETOS:-linux}-${TARGETARCH:-amd64}.tar.gz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/containerd/stargz-snapshotter/releases/download/${STARGZ_SNAPSHOTTER_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/containerd/stargz-snapshotter/releases/download/${STARGZ_SNAPSHOTTER_VERSION}/${fname}" && \
   http::helper github::file containerd/stargz-snapshotter script/config/etc/systemd/system/stargz-snapshotter.service "${STARGZ_SNAPSHOTTER_VERSION}" > "stargz-snapshotter.service" && \
   grep "${fname}" "/SHA256SUMS.d/stargz-snapshotter-${STARGZ_SNAPSHOTTER_VERSION}" | sha256sum -c - && \
   grep "stargz-snapshotter.service" "/SHA256SUMS.d/stargz-snapshotter-${STARGZ_SNAPSHOTTER_VERSION}" | sha256sum -c - && \
@@ -196,7 +196,7 @@ RUN git clone --quiet --depth 1 --branch "${IMGCRYPT_VERSION%%@*}" https://githu
 ARG SLIRP4NETNS_VERSION
 RUN SLIRP4NETNS_VERSION=${SLIRP4NETNS_VERSION%%@*}; \
   fname="slirp4netns-$(cat /target_uname_m)" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/slirp4netns-${SLIRP4NETNS_VERSION}" | sha256sum -c && \
   mv "${fname}" /out/bin/slirp4netns && \
   chmod +x /out/bin/slirp4netns && \
@@ -207,7 +207,7 @@ RUN echo "- bypass4netns: ${BYPASS4NETNS_VERSION%%@*}" >> /out/share/doc/nerdctl
 ARG FUSE_OVERLAYFS_VERSION
 RUN FUSE_OVERLAYFS_VERSION=${FUSE_OVERLAYFS_VERSION%%@*}; \
   fname="fuse-overlayfs-$(cat /target_uname_m)" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/containers/fuse-overlayfs/releases/download/${FUSE_OVERLAYFS_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/containers/fuse-overlayfs/releases/download/${FUSE_OVERLAYFS_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/fuse-overlayfs-${FUSE_OVERLAYFS_VERSION}" | sha256sum -c && \
   mv "${fname}" /out/bin/fuse-overlayfs && \
   chmod +x /out/bin/fuse-overlayfs && \
@@ -215,7 +215,7 @@ RUN FUSE_OVERLAYFS_VERSION=${FUSE_OVERLAYFS_VERSION%%@*}; \
 ARG CONTAINERD_FUSE_OVERLAYFS_VERSION
 RUN CONTAINERD_FUSE_OVERLAYFS_VERSION=${CONTAINERD_FUSE_OVERLAYFS_VERSION%%@*}; \
   fname="containerd-fuse-overlayfs-${CONTAINERD_FUSE_OVERLAYFS_VERSION##*v}-${TARGETOS:-linux}-${TARGETARCH:-amd64}.tar.gz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/containerd/fuse-overlayfs-snapshotter/releases/download/${CONTAINERD_FUSE_OVERLAYFS_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/containerd/fuse-overlayfs-snapshotter/releases/download/${CONTAINERD_FUSE_OVERLAYFS_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/containerd-fuse-overlayfs-${CONTAINERD_FUSE_OVERLAYFS_VERSION}" | sha256sum -c && \
   tar xzf "${fname}" -C /out/bin && \
   rm -f "${fname}" && \
@@ -223,7 +223,7 @@ RUN CONTAINERD_FUSE_OVERLAYFS_VERSION=${CONTAINERD_FUSE_OVERLAYFS_VERSION%%@*}; 
 ARG TINI_VERSION
 RUN TINI_VERSION=${TINI_VERSION%%@*}; \
   fname="tini-static-${TARGETARCH:-amd64}" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/krallin/tini/releases/download/${TINI_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/tini-${TINI_VERSION}" | sha256sum -c && \
   cp -a "${fname}" /out/bin/tini && chmod +x /out/bin/tini && \
   echo "- Tini: ${TINI_VERSION}" >> /out/share/doc/nerdctl-full/README.md
@@ -232,7 +232,7 @@ ARG BUILDG_VERSION
 # confusing debugging information, eg: BUILDG_VERSION will appear as if the original ARG value was used.
 RUN BUILDG_VERSION=${BUILDG_VERSION%%@*}; \
   fname="buildg-${BUILDG_VERSION}-${TARGETOS:-linux}-${TARGETARCH:-amd64}.tar.gz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/ktock/buildg/releases/download/${BUILDG_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/ktock/buildg/releases/download/${BUILDG_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/buildg-${BUILDG_VERSION}" | sha256sum -c && \
   tar xzf "${fname}" -C /out/bin && \
   rm -f "${fname}" && \
@@ -240,7 +240,7 @@ RUN BUILDG_VERSION=${BUILDG_VERSION%%@*}; \
 ARG ROOTLESSKIT_VERSION
 RUN ROOTLESSKIT_VERSION=${ROOTLESSKIT_VERSION%%@*}; \
   fname="rootlesskit-$(cat /target_uname_m).tar.gz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/rootless-containers/rootlesskit/releases/download/${ROOTLESSKIT_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/rootless-containers/rootlesskit/releases/download/${ROOTLESSKIT_VERSION}/${fname}" && \
   grep "${fname}" "/SHA256SUMS.d/rootlesskit-${ROOTLESSKIT_VERSION}" | sha256sum -c && \
   tar xzf "${fname}" -C /out/bin && \
   rm -f "${fname}" /out/bin/rootlesskit-docker-proxy && \
@@ -328,7 +328,7 @@ COPY --from=ghcr.io/sigstore/cosign/cosign:v2.2.3@sha256:8fc9cad121611e8479f65f7
 # installing soci for integration test
 ARG SOCI_SNAPSHOTTER_VERSION
 RUN fname="soci-snapshotter-${SOCI_SNAPSHOTTER_VERSION}-${TARGETOS:-linux}-${TARGETARCH:-amd64}.tar.gz" && \
-  curl -o "${fname}" -fsSL --proto '=https' --tlsv1.2 "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_SNAPSHOTTER_VERSION}/${fname}" && \
+  curl -o "${fname}" -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/awslabs/soci-snapshotter/releases/download/v${SOCI_SNAPSHOTTER_VERSION}/${fname}" && \
   tar -C /usr/local/bin -xvf "${fname}" soci soci-snapshotter-grpc && \
   mkdir -p /etc/soci-snapshotter-grpc && \
   touch /etc/soci-snapshotter-grpc/config.toml && \
@@ -349,7 +349,7 @@ RUN systemctl enable test-integration-ipfs-offline test-integration-buildkit-ner
   ipfs config Addresses.Gateway "/ip4/127.0.0.1/tcp/5889"
 # install nydus components
 ARG NYDUS_VERSION
-RUN curl -o nydus-static.tgz -fsSL --proto '=https' --tlsv1.2 "https://github.com/dragonflyoss/image-service/releases/download/${NYDUS_VERSION}/nydus-static-${NYDUS_VERSION}-linux-${TARGETARCH}.tgz" && \
+RUN curl -o nydus-static.tgz -fsSL --retry 5 --retry-delay 5 --retry-max-time 120 --connect-timeout 20 --proto '=https' --tlsv1.2 "https://github.com/dragonflyoss/image-service/releases/download/${NYDUS_VERSION}/nydus-static-${NYDUS_VERSION}-linux-${TARGETARCH}.tgz" && \
   tar xzf nydus-static.tgz && \
   mv nydus-static/nydus-image nydus-static/nydusd nydus-static/nydusify /usr/bin/ && \
   rm nydus-static.tgz
