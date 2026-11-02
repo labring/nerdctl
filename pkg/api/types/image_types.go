@@ -18,6 +18,7 @@ package types
 
 import (
 	"io"
+	"time"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -76,9 +77,14 @@ type ImageConvertOptions struct {
 	SociConvertOptions
 }
 
+const DefaultCommitLeaseDuration = 6 * time.Hour
+
 type DevboxOptions struct {
 	// RemoveBaseImageTopLayer remove the top layer of the base image
 	RemoveBaseImageTopLayer bool
+	// CommitLeaseDuration controls how long the container commit lease is kept alive.
+	// Non-positive values use DefaultCommitLeaseDuration.
+	CommitLeaseDuration time.Duration
 }
 
 // EstargzOptions contains eStargz conversion options
