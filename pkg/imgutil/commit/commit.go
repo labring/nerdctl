@@ -77,6 +77,13 @@ var (
 	emptyDigest  = digest.Digest("")
 )
 
+func commitLeaseDuration(opts *Opts) time.Duration {
+	if opts == nil || opts.DevboxOptions.CommitLeaseDuration <= 0 {
+		return types.DefaultCommitLeaseDuration
+	}
+	return opts.DevboxOptions.CommitLeaseDuration
+}
+
 func Commit(ctx context.Context, client *containerd.Client, container containerd.Container, opts *Opts, globalOptions types.GlobalCommandOptions) (digest.Digest, error) {
 	// Get labels
 	containerLabels, err := container.Labels(ctx)
@@ -174,8 +181,14 @@ func Commit(ctx context.Context, client *containerd.Client, container containerd
 		sn     = client.SnapshotService(snName)
 	)
 
-	// Don't gc me and clean the dirty data after 1 hour!
-	ctx, done, err := client.WithLease(ctx, leases.WithRandomID(), leases.WithExpiration(1*time.Hour))
+	// Don't GC me and clean the dirty data while the commit is running. Committing
+	// a large container, especially with eStargz conversion enabled, can take a
+	// long time, so keep the lease for the configured duration.
+	ctx, done, err := client.WithLease(
+		ctx,
+		leases.WithRandomID(),
+		leases.WithExpiration(commitLeaseDuration(opts)),
+	)
 	if err != nil {
 		return emptyDigest, fmt.Errorf("failed to create lease for commit: %w", err)
 	}
